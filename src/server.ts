@@ -1271,6 +1271,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
     // server_call_tool completion event (duration + status), even on the crash path.
     let telemetryData: any = { tool_name: name };
     let result!: ServerResult;
+    let resultForObservation: ServerResult | undefined;
     let isError = false;
     let errorClass: string | null = null;
     let observationMetadata: unknown = undefined;
