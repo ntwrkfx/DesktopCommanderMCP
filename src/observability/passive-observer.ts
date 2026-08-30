@@ -65,7 +65,7 @@ export function recordPassiveObservation(observation: PassiveObservation): void 
       response_bytes: observation.responseBytes,
       outcome: observation.isError ? 'ERROR' : 'SUCCESS',
       error_class: observation.errorClass || null,
-      remote: observation.remote,
+      remote: observation.remote || process.env.DC_OBSERVER_FORCE_REMOTE === 'true',
       project_ref: safeRef(metadata.project_ref),
       work_ref: safeRef(metadata.work_ref),
       attempt_ref: safeRef(metadata.attempt_ref),
