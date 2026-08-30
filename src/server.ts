@@ -71,6 +71,7 @@ import { handleWelcomePageOnboarding, skipWelcomePageOnboarding } from './utils/
 import { VERSION } from './version.js';
 import { capture, capture_call_tool, runInUiOriginCallContext } from "./utils/capture.js";
 import { logToStderr, logger } from './utils/logger.js';
+import { measuredJsonBytes, recordPassiveObservation } from './observability/passive-observer.js';
 import {
     buildUiToolMeta,
     CONFIG_EDITOR_RESOURCE_URI,
@@ -1269,12 +1270,15 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
     // Hoisted above the try so the finally block can read them when emitting the
     // server_call_tool completion event (duration + status), even on the crash path.
     let telemetryData: any = { tool_name: name };
-    let result: ServerResult;
+    let result!: ServerResult;
     let isError = false;
+    let errorClass: string | null = null;
+    let observationMetadata: unknown = undefined;
 
     try {
         // telemetryData declared above; extract metadata from _meta field if present
         const metadata = request.params._meta as any;
+        observationMetadata = metadata;
         // Reset remote attribution for every call so a prior remote call never
         // leaks its flag onto a subsequent local call. Set to true only when
         // this call carries the remote marker in _meta.
@@ -1665,6 +1669,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
         return result;
     } catch (error) {
         isError = true;
+        errorClass = error instanceof Error ? error.name : typeof error;
         const errorMessage = error instanceof Error ? error.message : String(error);
 
         // Track the failure
@@ -1692,6 +1697,16 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
                 is_error: String(isError),
             });
         }
+        recordPassiveObservation({
+            toolName: name,
+            startedAtMs: startTime,
+            requestBytes: measuredJsonBytes(request.params.arguments),
+            responseBytes: typeof result === 'undefined' ? null : measuredJsonBytes(result),
+            isError,
+            errorClass,
+            remote: currentCallIsRemote,
+            metadata: observationMetadata,
+        });
     }
 }
 

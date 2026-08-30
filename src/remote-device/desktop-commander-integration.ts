@@ -38,9 +38,19 @@ export class DesktopCommanderIntegration {
             // DC_REMOTE_DEVICE tells the spawned server it is serving remote
             // services, so it suppresses local-only behavior like opening the
             // welcome page in a browser the remote user would never see.
+            const observerEnv = Object.fromEntries(
+                ['DC_OBSERVER_ENABLED', 'DC_OBSERVER_SPOOL', 'DC_OBSERVER_DEVICE_ID', 'DC_OBSERVER_REVISION']
+                    .map((key) => [key, process.env[key]])
+                    .filter(([, value]) => typeof value === 'string' && value.length > 0)
+            ) as Record<string, string>;
             this.mcpTransport = new StdioClientTransport({
                 ...config,
-                env: { ...getDefaultEnvironment(), ...config.env, DC_REMOTE_DEVICE: 'true' }
+                env: {
+                    ...getDefaultEnvironment(),
+                    ...config.env,
+                    ...observerEnv,
+                    DC_REMOTE_DEVICE: 'true'
+                }
             });
 
             // Create MCP client
