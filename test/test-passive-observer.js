@@ -34,9 +34,12 @@ assert.equal(event.project_ref, 'PRJ-001');
 assert.equal(event.outcome, 'SUCCESS');
 assert.equal(typeof event.request_bytes, 'number');
 assert.equal(typeof event.response_bytes, 'number');
-// A bad spool path must be absorbed rather than becoming execution failure.
-process.env.DC_OBSERVER_SPOOL = '/proc/not-writable/trace.jsonl';
-recordPassiveObservation({
+// Reload under a bad spool so the actual write failure path is exercised.
+const blocker = path.join(dir, 'not-a-directory');
+await fs.writeFile(blocker, 'x');
+process.env.DC_OBSERVER_SPOOL = path.join(blocker, 'trace.jsonl');
+const failingObserver = await import('../dist/observability/passive-observer.js?failopen=1');
+failingObserver.recordPassiveObservation({
   toolName: 'read_file',
   startedAtMs: Date.now(),
   requestBytes: 1,
@@ -45,5 +48,5 @@ recordPassiveObservation({
   errorClass: 'SyntheticError',
   remote: false,
 });
-await flushPassiveObserver();
+await failingObserver.flushPassiveObserver();
 console.log('PASS passive observer privacy, attribution, and fail-open behavior');
