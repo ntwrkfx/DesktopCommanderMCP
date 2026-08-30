@@ -48,11 +48,14 @@ export function recordPassiveObservation(observation: PassiveObservation): void 
     const metadata = observation.metadata && typeof observation.metadata === 'object'
       ? observation.metadata as Record<string, unknown>
       : {};
+    const callId = safeRef(metadata.call_id) || randomUUID();
     const event = {
       schema_version: 'rdc-raw-trace/v1',
       event_id: randomUUID(),
-      trace_id: safeRef(metadata.trace_id) || randomUUID(),
-      call_id: safeRef(metadata.call_id) || randomUUID(),
+      // Until the relay supplies a task/trace identity, one authoritative call
+      // is the smallest defensible trace boundary. Never invent cross-call grouping.
+      trace_id: safeRef(metadata.trace_id) || callId,
+      call_id: callId,
       runner: 'RDC',
       device_id: safeRef(process.env.DC_OBSERVER_DEVICE_ID) || 'UNKNOWN',
       rdc_revision: safeRef(process.env.DC_OBSERVER_REVISION) || 'UNKNOWN',

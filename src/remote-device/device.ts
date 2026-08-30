@@ -356,7 +356,14 @@ export class MCPDevice {
                 }, 1000);
             } else {
                 // Execute other tools using desktop integration
-                result = await this.desktop.callClientTool(tool_name, tool_args, metadata);
+                result = await this.desktop.callClientTool(tool_name, tool_args, {
+                    ...metadata,
+                    // Relay row identity is authoritative and lives outside metadata.
+                    // Attach it before forwarding into the local stdio MCP so
+                    // passive observers and receipts can correlate the exact call.
+                    call_id,
+                    device_id: this.deviceId ?? device_id,
+                });
             }
 
             console.log(`✅ Tool call ${tool_name} completed:\r\n ${JSON.stringify(result)}`);

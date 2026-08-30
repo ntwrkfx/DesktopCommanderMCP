@@ -34,6 +34,25 @@ assert.equal(event.project_ref, 'PRJ-001');
 assert.equal(event.outcome, 'SUCCESS');
 assert.equal(typeof event.request_bytes, 'number');
 assert.equal(typeof event.response_bytes, 'number');
+
+// Without a higher-level trace id, the authoritative relay call id becomes the
+// smallest defensible trace boundary rather than generating unrelated ids.
+const callBoundarySpool = path.join(dir, 'call-boundary.jsonl');
+process.env.DC_OBSERVER_SPOOL = callBoundarySpool;
+const callBoundaryObserver = await import('../dist/observability/passive-observer.js?callboundary=1');
+callBoundaryObserver.recordPassiveObservation({
+  toolName: 'get_config',
+  startedAtMs: Date.now(),
+  requestBytes: 2,
+  responseBytes: 2,
+  isError: false,
+  remote: true,
+  metadata: { call_id: 'relay-call-123' },
+});
+await callBoundaryObserver.flushPassiveObserver();
+const callBoundaryEvent = JSON.parse((await fs.readFile(callBoundarySpool, 'utf8')).trim());
+assert.equal(callBoundaryEvent.call_id, 'relay-call-123');
+assert.equal(callBoundaryEvent.trace_id, 'relay-call-123');
 // Reload under a bad spool so the actual write failure path is exercised.
 const blocker = path.join(dir, 'not-a-directory');
 await fs.writeFile(blocker, 'x');
