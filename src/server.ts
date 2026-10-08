@@ -1271,6 +1271,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
     // server_call_tool completion event (duration + status), even on the crash path.
     let telemetryData: any = { tool_name: name };
     let result!: ServerResult;
+    let resultForObservation: ServerResult | undefined;
     let isError = false;
     let errorClass: string | null = null;
     let observationMetadata: unknown = undefined;
@@ -1540,6 +1541,10 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
                 };
         }
 
+        // Preserve the completed result only for passive observation. If execution
+        // throws before a result exists, the observer records a null response size.
+        resultForObservation = result;
+
         // Add tool call to history (exclude only get_recent_tool_calls to prevent recursion)
         const duration = Date.now() - startTime;
         isError = !!result.isError;
@@ -1701,7 +1706,7 @@ async function handleCallToolRequest(request: CallToolRequest): Promise<ServerRe
             toolName: name,
             startedAtMs: startTime,
             requestBytes: measuredJsonBytes(request.params.arguments),
-            responseBytes: typeof result === 'undefined' ? null : measuredJsonBytes(result),
+            responseBytes: resultForObservation ? measuredJsonBytes(resultForObservation) : null,
             isError,
             errorClass,
             remote: currentCallIsRemote,

@@ -9,6 +9,7 @@ process.env.DC_OBSERVER_ENABLED = 'true';
 process.env.DC_OBSERVER_SPOOL = spool;
 process.env.DC_OBSERVER_DEVICE_ID = 'DEV-TEST-001';
 process.env.DC_OBSERVER_REVISION = 'abc123';
+process.env.DC_OBSERVER_FORCE_REMOTE = 'true';
 
 const { recordPassiveObservation, flushPassiveObserver, measuredJsonBytes } = await import('../dist/observability/passive-observer.js');
 const secret = 'TOP-SECRET-COMMAND-ARG';
@@ -18,7 +19,7 @@ recordPassiveObservation({
   requestBytes: measuredJsonBytes({ command: secret }),
   responseBytes: measuredJsonBytes({ content: secret }),
   isError: false,
-  remote: true,
+  remote: false,
   metadata: { trace_id: 'trace-1', project_ref: 'PRJ-001', unsafe_ref: '/secret/path' },
 });
 await flushPassiveObserver();
@@ -32,6 +33,7 @@ assert.equal(event.tool_name, 'start_process');
 assert.equal(event.trace_id, 'trace-1');
 assert.equal(event.project_ref, 'PRJ-001');
 assert.equal(event.outcome, 'SUCCESS');
+assert.equal(event.remote, true, 'deployment route may force remote attribution');
 assert.equal(typeof event.request_bytes, 'number');
 assert.equal(typeof event.response_bytes, 'number');
 
